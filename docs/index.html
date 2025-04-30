@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Zone Filter Add-In</title>
+    <script>
+      // JS Functions
+      async function getFeedData(
+        api,
+        feedMethod,
+        fromVersion = "0000000000000000",
+        resultsLimit = 10000,
+        baseLimit = 200
+      ) {
+        let oldVersion = fromVersion;
+        let newVersion = null;
+        let allDetails = [];
+
+        let requestCount = 0;
+        const timeWindowMs = 60 * 1000;
+        let startTime = Date.now();
+
+        async function rateLimitCheck() {
+          if (requestCount >= baseLimit) {
+            const elapsed = Date.now() - startTime;
+            if (elapsed < timeWindowMs) {
+              await new Promise(resolve =>
+                setTimeout(resolve, timeWindowMs - elapsed)
+              );
+            }
+            requestCount = 0;
+            startTime = Date.now();
+          }
+        }
+
+        console.log(
+          `Please ensure the baseLimit is correct. Default is 200/min for GetFeed<${feedMethod}>.`
+        );
+
+        let response = await api.call("GetFeed", {
+          typeName: feedMethod,
+          resultsLimit: resultsLimit,
+          fromVersion: oldVersion,
+        });
+
+        requestCount++;
+        newVersion = response.toVersion;
+        let dataChunk = response.data;
+        allDetails.push(...dataChunk);
+
+        while (oldVersion !== newVersion && dataChunk.length > 0) {
+          await rateLimitCheck();
+
+          oldVersion = newVersion;
+
+          const startRequest = Date.now();
+          response = await api.call("GetFeed", {
+            typeName: feedMethod,
+            resultsLimit: resultsLimit,
+            fromVersion: oldVersion,
+          });
+          const duration = ((Date.now() - startRequest) / 1000).toFixed(2);
+          console.log(`GetFeed<${feedMethod}> call took ${duration}s`);
+
+          requestCount++;
+          dataChunk = response.data;
+          newVersion = response.toVersion;
+
+          if (dataChunk.length > 0) {
+            allDetails.push(...dataChunk);
+          }
+        }
+
+        return allDetails;
+      }
+
+      function filterZonesWithoutGroupId(data, excludedGroupId = "b287B") {
+        return data.filter(item => {
+          const groups = item.groups || [];
+          return groups.every(group => group.id !== excludedGroupId);
+        });
+      }
+
+      // Add-In Definition
+      var myAddin = {
+        initialize: function (api, state, callback) {
+          callback();
+        },
+        focus: async function (api, state) {
+          try {
+            const zones = await getFeedData(api, "Zone");
+            const filtered = filterZonesWithoutGroupId(zones, "b287B");
+
+            console.log("Filtered Zones:", filtered);
+            alert(
+              `Filtered ${filtered.length} zones without group 'b287B'. Check console for details.`
+            );
+          } catch (err) {
+            console.error("Error running zone filter:", err);
+            alert("An error occurred. See console.");
+          }
+        },
+        blur: function () {},
+      };
+    </script>
+  </head>
+  <body>
+    <h1>Zone Filter</h1>
+  </body>
+</html>
