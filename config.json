@@ -1,0 +1,16 @@
+{
+  "name": "Zone Filter",
+  "supportEmail": "hishamsamsudeen@geotab.com",
+  "version": "1.0.0",
+  "items": [
+    {
+      "title": "Filter Zones by Group",
+      "url": "/test_add_in/testaddin.html",
+      "category": "AddIns",
+      "menuName": {
+        "en": "pepsico_zone_group_monitor_add_in"
+      },
+      "icon": "https://getdrawings.com/free-icon/uber-car-icon-54.png"
+    }
+  ]
+}
